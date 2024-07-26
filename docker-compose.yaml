@@ -2,6 +2,6 @@ version: '3.9'
 
 services:
   web:
-    image: "hritik1706/node-app:lts"
+    image: "hritik1706/node-todo-app:lts"
     ports:
       - "8000:8000"
