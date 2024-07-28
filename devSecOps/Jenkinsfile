@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+    environment{
+        SONAR = tool "Sonar"
+    }
+    
+    stages {
+        
+        stage("code"){
+            steps{
+                git url: "https://github.com/Hritik1706/node-todo-app", branch: "main"
+                echo 'clone successfull'
+            }
+        }
+         stage("SonarQube Analysis"){
+            steps{
+                withSonarQubeEnv("Sonar"){
+                    sh "$SONAR/bin/sonar-scanner -Dsonar.projectName=nodetodoapp -Dsonar.projectKey=nodetodoapp"
+                }
+                echo "Sonar Scan Successfull "
+            }
+        }
+        stage("OWASP"){
+            steps{
+                dependencyCheck additionalArguments: '--scan ./', odcInstallation: 'OWASP'
+                dependecyCheckPublisher pattern: '**/dependecy-check-report.xml'
+            }
+        }
+        stage("build and test"){
+            steps{
+                sh "docker build -t hritik1706/node-todo-app:lts ."
+                echo 'buildcsuccessfull '
+            }
+        }
+        stage("Trivy"){
+            steps{
+                sh "trivy image hritik1706/node-todo-app:lts"
+                echo "Trivy Successfull"
+            }
+        }
+        stage("push"){
+            steps{
+                withCredentials([usernamePassword(credentialsId:"dockerHub",passwordVariable:"dockerHubPass",usernameVariable:"dockerHubUser")]){
+                sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
+                sh "docker push ${env.dockerHubUser}/node-todo-app:lts"
+                echo 'image push successfull'
+                }
+            }
+        }
+        stage("deploy"){
+            steps{
+                sh "docker-compose down && docker-compose up -d"
+                echo 'deployment successfull'
+            }
+        }
+    }
+}
